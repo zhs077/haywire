@@ -53,9 +53,10 @@ void ipc_connection_cb(uv_stream_t* ipc_pipe, int status)
     
     if (--sc->num_connects == 0)
         uv_close((uv_handle_t*) ipc_pipe, NULL);
+    (void)(rc);
 }
 
-extern void print_configuration();
+
 /* Set up an IPC pipe server that hands out listen sockets to the worker
  * threads. It's kind of cumbersome for such a simple operation, maybe we
  * should revive uv_import() and uv_export().
@@ -82,7 +83,7 @@ void start_connection_dispatching(uv_handle_type type, unsigned int num_servers,
         }
 
         rc = uv_tcp_bind((uv_tcp_t*) &ctx.server_handle, (const struct sockaddr*)&listen_addr, 0);
-        print_configuration();
+        
         printf("Listening...\n");
     }
     
@@ -99,4 +100,5 @@ void start_connection_dispatching(uv_handle_type type, unsigned int num_servers,
     
     for (i = 0; i < num_servers; i++)
         uv_sem_wait(&servers[i].semaphore);
+    (void)(rc);
 }

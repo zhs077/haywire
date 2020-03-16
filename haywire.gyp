@@ -23,6 +23,9 @@
             'cflags': [
               '-std=gnu99',
             ],
+ 			'ldflags': [
+              '-jemalloc2',
+            ],
           }],
           ['OS=="win"', {
             'defines': [

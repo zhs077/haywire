@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 #include "server_stats.h"
 #include "haywire.h"
 
@@ -53,7 +54,7 @@ void get_server_stats(http_request* request, hw_http_response* response, void* u
     
     hw_http_response_send(response, NULL, NULL);
     
-    printf("connections_created_total: %d\nconnections_destroyed_total: %d\nrequests_created_total: %d\nrequests_destroyed_total: %d\n\n",
+    printf("connections_created_total: %ld\nconnections_destroyed_total: %ld\nrequests_created_total: %ld\nrequests_destroyed_total: %ld\n\n",
         stat_connections_created_total,
         stat_connections_destroyed_total,
         stat_requests_created_total,

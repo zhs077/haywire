@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <haywire.h>
+#include <uv.h>
 #include "opt.h"
 #include "haywire.h"
 
@@ -71,10 +71,13 @@ void get_root(http_request* request, hw_http_response* response, void* user_data
     
     SETSTRING(content_type_value, "text/html");
     hw_set_response_header(response, &content_type_name, &content_type_value);
-    
-    SETSTRING(body, "hello world");
-    hw_set_body(response, &body);
-    
+    body.value = hw_get_peer_ip(request);
+	body.length = strlen(hw_get_peer_ip(request));
+    //printf("%s\n, %d\n", body.value, body.length);
+
+	//SETSTRING(body, "hello");
+	hw_set_body(response, &body);
+
     if (request->keep_alive)
     {
         SETSTRING(keep_alive_name, "Connection");
@@ -89,32 +92,61 @@ void get_root(http_request* request, hw_http_response* response, void* user_data
     
     hw_http_response_send(response, "user_data", response_complete);
 }
+void on_uv_close2(uv_handle_t* handle)
+{
+    if (handle != NULL){
+        free(handle);
+    }
+}
+void on_uv_walk2(uv_handle_t* handle, void* arg)
+{
+	(void)(arg);
+    uv_close(handle, on_uv_close2);
+}
+void on_sigint_received(uv_signal_t *handle, int signum)
+{
+	(void)(signum);
+	hw_http_stop();
+	while(1){
+		if ( 1 == hw_http_check_stop()){
+			break;
+		}
+		usleep(5);
+	}
 
+	printf("ALL threads have exit\n");
+	//退出父进程
+    int result = uv_loop_close(handle->loop);
+    if (result == UV_EBUSY){
+    	printf("UV_EBUSY\n");
+        uv_walk(handle->loop, on_uv_walk2, NULL);
+    }
+}
 int main(int args, char** argsv)
 {
     char root_route[] = "/";
     char ping_route[] = "/ping";
     configuration config;
-    config.http_listen_address = "0.0.0.0";
+    hw_configuration_init(&config);
+    config.http_listen_port = 10086;
+    config.thread_count = 60;
+    config.listen_backlog = 10240;
 
-    struct opt_config *conf;
-    conf = opt_config_init();
-    opt_flag_int(conf, &config.http_listen_port, "port", 8000, "Port to listen on.");
-    opt_flag_int(conf, &config.thread_count, "threads", 0, "Number of threads to use.");
-    opt_flag_string(conf, &config.balancer, "balancer", "ipc", "Method to load balance threads.");
-    opt_flag_string(conf, &config.parser, "parser", "http_parser", "HTTP parser to use");
-    opt_flag_int(conf, &config.max_request_size, "max_request_size", 1048576, "Maximum request size. Defaults to 1MB.");
-    opt_flag_bool(conf, &config.tcp_nodelay, "tcp_nodelay", "If present, enables tcp_nodelay (i.e. disables Nagle's algorithm).");
-    opt_flag_int(conf, &config.listen_backlog, "listen_backlog", 0, "Maximum size of the backlog when accepting connection. Defaults to SOMAXCONN.");
-    args = opt_config_parse(conf, args, argsv);
 
-    hw_init_with_config(&config);
-    
+    hw_print_configuration(&config);
+    uv_loop_t *loop = uv_default_loop();
+    //hw_configuration_init(&config);
+    hw_http_init(&config);
+
     hw_http_add_route(ping_route, get_ping, NULL);
     hw_http_add_route(root_route, get_root, NULL);
-    
-    hw_http_open();
 
-    opt_config_free(conf);
+    uv_signal_t *sigint = malloc(sizeof (uv_signal_t));
+	uv_signal_init(loop, sigint);
+	uv_signal_start(sigint, on_sigint_received, SIGUSR1);
+
+    hw_http_start(loop);
+    printf("Stop\n");
+
     return 0;
 }

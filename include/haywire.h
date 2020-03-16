@@ -5,6 +5,7 @@ extern "C" {
 #endif
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 #ifdef _WIN32
@@ -134,6 +135,7 @@ enum hw_http_method
 
 #define STRLENOF(s) sizeof(s)-1
 #define SETSTRING(s,val) s.value=val; s.length=STRLENOF(val)
+#define SETSTRING2(s,val, len) s.value=val; s.length=len
 #define APPENDSTRING(s,val) memcpy((char*)s->value + s->length, val, STRLENOF(val)); s->length+=STRLENOF(val)
 
 typedef	void* hw_http_response;
@@ -146,16 +148,20 @@ typedef struct
 
 typedef struct
 {
-    char* http_listen_address;
+    char http_listen_address[256];
     unsigned int http_listen_port;
     unsigned int thread_count;
-    char* balancer;
-    char* parser;
+    char balancer[256];
+    char parser[256];
     bool tcp_nodelay;
     unsigned int listen_backlog;
     unsigned int max_request_size;
+    char server_name[256];
+//    unsigned int persist_interval;
+//    unsigned int daemonize;
+
 } configuration;
-    
+
 typedef struct
 {
     unsigned short http_major;
@@ -166,17 +172,26 @@ typedef struct
     void* headers;
     hw_string* body;
     size_t body_length;
+    int index;
     enum {OK, SIZE_EXCEEDED, BAD_REQUEST, INTERNAL_ERROR} state;
+    void *connection;
 } http_request;
 
 typedef void (HAYWIRE_CALLING_CONVENTION *http_request_callback)(http_request* request, hw_http_response* response, void* user_data);
-typedef void (HAYWIRE_CALLING_CONVENTION *http_response_complete_callback)(void* user_data);
+typedef void (HAYWIRE_CALLING_CONVENTION *http_response_complete_callback)(void* user_data, int status);
 
-HAYWIRE_EXTERN int hw_init_from_config(char* configuration_filename);
-HAYWIRE_EXTERN int hw_init_with_config(configuration* config);
-HAYWIRE_EXTERN int hw_http_open();
+//HAYWIRE_EXTERN int hw_init_from_config(char* configuration_filename);
+//HAYWIRE_EXTERN int hw_init_with_config(configuration* config);
+//HAYWIRE_EXTERN void print_configuration(configuration *config);
+HAYWIRE_EXTERN void hw_configuration_init(configuration *config);
+HAYWIRE_EXTERN int  hw_configuration_load_file(configuration *config, const char* filename);
+HAYWIRE_EXTERN void hw_print_configuration(configuration *config);
+HAYWIRE_EXTERN void hw_http_init(configuration *config);
+HAYWIRE_EXTERN int hw_http_start(void* uv_loop);
 HAYWIRE_EXTERN void hw_http_add_route(char* route, http_request_callback callback, void* user_data);
+HAYWIRE_EXTERN uint64_t hw_http_get_connection_num();
 HAYWIRE_EXTERN hw_string* hw_get_header(http_request* request, hw_string* key);
+HAYWIRE_EXTERN char* hw_get_peer_ip(http_request* request);
 
 HAYWIRE_EXTERN void hw_free_http_response(hw_http_response* response);
 HAYWIRE_EXTERN void hw_set_http_version(hw_http_response* response, unsigned short major, unsigned short minor);
@@ -186,6 +201,9 @@ HAYWIRE_EXTERN void hw_set_body(hw_http_response* response, hw_string* body);
 HAYWIRE_EXTERN void hw_http_response_send(hw_http_response* response, void* user_data, http_response_complete_callback callback);
     
 HAYWIRE_EXTERN void hw_print_request_headers(http_request* request);
+HAYWIRE_EXTERN void get_server_stats(http_request* request, hw_http_response* response, void* user_data);
+HAYWIRE_EXTERN void  hw_http_stop();
+HAYWIRE_EXTERN int hw_http_check_stop();
 
 #ifdef __cplusplus
 }

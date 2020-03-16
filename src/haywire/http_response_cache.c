@@ -13,7 +13,7 @@
 #define CRLF "\r\n"
 KHASH_MAP_INIT_STR(string_hashmap, hw_string*)
 
-static uv_timer_t cache_invalidation_timer;
+//static uv_timer_t cache_invalidation_timer;
 static uv_key_t thread_cache_key;
 
 void initialize_http_request_cache();
@@ -72,7 +72,7 @@ void create_cached_http_request(khash_t(string_hashmap)* http_request_cache, con
     cache_entry->length = 0;
     hw_string status;
     status.length = strlen(http_status);
-    status.value = http_status;
+    status.value = (char*)http_status;
     
     append_string(cache_entry, http_v1_1);
     append_string(cache_entry, &status);
@@ -81,16 +81,16 @@ void create_cached_http_request(khash_t(string_hashmap)* http_request_cache, con
     APPENDSTRING(cache_entry, CRLF);
 
     // Add the current time.
-    time_t curtime;
-    time(&curtime);
-    char* current_time = ctime(&curtime);
-    hw_string current_datetime;
-    current_datetime.value = current_time;
-    current_datetime.length = strlen(current_time);
-    APPENDSTRING(cache_entry, "Date: ");
-    append_string(cache_entry, &current_datetime);
+//    time_t curtime;
+//    time(&curtime);
+//    char* current_time = ctime(&curtime);
+//    hw_string current_datetime;
+//    current_datetime.value = current_time;
+//    current_datetime.length = strlen(current_time);
+//    APPENDSTRING(cache_entry, "Date: ");
+//    append_string(cache_entry, &current_datetime);
 
-    set_cached_request(http_request_cache, http_status, cache_entry);
+    set_cached_request(http_request_cache, (char*)http_status, cache_entry);
 }
 
 void set_cached_request(khash_t(string_hashmap)* http_request_cache, char* http_status, hw_string* cache_entry)

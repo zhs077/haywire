@@ -21,6 +21,7 @@ hw_string* hw_strdup(hw_string* tocopy)
     return str;
 }
 
+// a配置的url, b 请求的url
 int hw_strcmp(hw_string* a, hw_string* b) {
     int ret;
     
@@ -61,7 +62,7 @@ char* dupstr(const char *s)
 
 void string_from_int(hw_string* str, int val, int base)
 {
-	static char buf[32] = {0};
+	char buf[32] = {0};
 	int i = 30;
 	int length = 0;
     

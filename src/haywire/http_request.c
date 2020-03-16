@@ -108,6 +108,7 @@ http_request* create_http_request(http_connection* connection)
     request->url = calloc(1, sizeof(hw_string));
     request->body = calloc(1, sizeof(hw_string));
     request->state = OK;
+    request->connection = connection;
     INCREMENT_STAT(stat_requests_created_total);
     return request;
 }
@@ -141,6 +142,13 @@ hw_string* hw_get_header(http_request* request, hw_string* key)
     return value;
 }
 
+char* hw_get_peer_ip(http_request* request)
+{
+    http_connection *con =  (http_connection*)request->connection;
+    return con->peer_ip;
+
+}
+
 int http_request_on_message_begin(http_parser* parser)
 {
     http_connection* connection = (http_connection*)parser->data;
@@ -167,7 +175,7 @@ int http_request_on_url(http_parser *parser, const char *at, size_t length)
            so we can recover the URL later on, we only increment the URL length and ignore the pointer passed in as a parameter. */
         url->length += length;
     } else {
-        url->value = at;
+        url->value = (char*)at;
         url->length = length;
         /* We've seen the URL start, so we need to pin it to recover it later */
         http_request_buffer_pin(connection->buffer, url, url->value);
@@ -215,10 +223,10 @@ int http_request_on_header_field(http_parser *parser, const char *at, size_t len
         connection->current_header_key.length += length;
     } else {
         /* Start of a new header key */
-        connection->current_header_key.value = at;
+        connection->current_header_key.value = (char*)at;
         connection->current_header_key.length = length;
         /* Pin the header key */
-        http_request_buffer_pin(connection->buffer, &connection->current_header_key, at);
+        http_request_buffer_pin(connection->buffer, (void*)&connection->current_header_key, (void*)at);
     }
 
     connection->last_was_value = 0;
@@ -230,11 +238,11 @@ int http_request_on_header_value(http_parser *parser, const char *at, size_t len
     http_connection* connection = (http_connection*)parser->data;
 
     if (!connection->last_was_value) {
-        connection->current_header_value.value = at;
+        connection->current_header_value.value = (char*)at;
         connection->current_header_value.length = length;
         connection->last_was_value = 1;
         /* Pin the header value */
-        http_request_buffer_pin(connection->buffer, &connection->current_header_value, at);
+        http_request_buffer_pin(connection->buffer, (void*)&connection->current_header_value, (void*)at);
     } else {
         /* Another header value chunk, not necessarily contiguous to the other chunks seen before, so we only increment
          * the length. When the header value is located later on, it will be guaranteedly contiguous. */
@@ -270,7 +278,7 @@ int http_request_on_body(http_parser *parser, const char *at, size_t length)
     if (length != 0)
     {
         if (body->length == 0) {
-            body->value = at;
+            body->value = (char*)at;
             body->length = length;
             /* Let's pin the body so we can recover it later, even if the underlying buffers change */
             http_request_buffer_pin(connection->buffer, body, body->value);
@@ -295,7 +303,7 @@ hw_route_entry* get_route_callback(hw_string* url)
 
     kh_foreach(h, k, v,
     {
-        int found = hw_route_compare_method(url, k);
+        int found = hw_route_compare_method(url, (char*)k, ((hw_route_entry*)v)->len);
         if (found)
         {
             route_entry = (hw_route_entry*)v;
@@ -315,32 +323,32 @@ void send_error_response(http_request* request, http_response* response, const c
     hw_string keep_alive_name;
     hw_string keep_alive_value;
 
-    status_code.value = error_code;
+    status_code.value = (char*)error_code;
     status_code.length = strlen(error_code);
-    hw_set_response_status_code(response, &status_code);
+    hw_set_response_status_code((hw_http_response*)response, &status_code);
     
     SETSTRING(content_type_name, "Content-Type");
     
     SETSTRING(content_type_value, "text/html");
-    hw_set_response_header(response, &content_type_name, &content_type_value);
+    hw_set_response_header((hw_http_response*)response, &content_type_name, &content_type_value);
 
-    body.value = error_message;
+    body.value = (char*)error_message;
     body.length = strlen(error_message);
-    hw_set_body(response, &body);
+    hw_set_body((hw_http_response*)response, &body);
     
     if (request->keep_alive)
     {
         SETSTRING(keep_alive_name, "Connection");
         
         SETSTRING(keep_alive_value, "Keep-Alive");
-        hw_set_response_header(response, &keep_alive_name, &keep_alive_value);
+        hw_set_response_header((hw_http_response*)response, &keep_alive_name, &keep_alive_value);
     }
     else
     {
-        hw_set_http_version(response, 1, 0);
+        hw_set_http_version((hw_http_response*)response, 1, 0);
     }
 
-    hw_http_response_send(response, NULL, 0);
+    hw_http_response_send((hw_http_response*)response, NULL, 0);
 }
 
 /**

@@ -1,5 +1,5 @@
 #!/bin/bash
-./compile_dependencies.sh
+#./compile_dependencies.sh
 
 unamestr=`uname`
 

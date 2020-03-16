@@ -5,6 +5,7 @@
 #include "http_parser.h"
 #include "http_request.h"
 #include "http_request_buffers.h"
+#include "list.h"
 
 typedef struct
 {
@@ -18,4 +19,6 @@ typedef struct
     int last_was_value;
     enum {OPEN, CLOSING, CLOSED} state;
     hw_request_buffer* buffer;
+    char peer_ip[128];
+    list_link llnk;
 } http_connection;

@@ -6,6 +6,7 @@
 #include "http_server.h"
 #include "http_response_cache.h"
 #include "hw_string.h"
+#include <stdlib.h>
 
 #define CRLF "\r\n"
 KHASH_MAP_INIT_STR(string_hashmap, char*)
@@ -86,6 +87,7 @@ hw_string* create_response_buffer(hw_http_response* response)
     int response_size = header_size_remaining + sizeof(length_header) + num_chars(resp->body.length) + 2 * line_sep_size + body_size + line_sep_size;
 
     response_string->value = malloc(response_size);
+   // bzero(response_string->value, response_size);
 
     response_string->length = 0;
     append_string(response_string, cached_entry);
@@ -106,11 +108,15 @@ hw_string* create_response_buffer(hw_http_response* response)
         append_string(response_string, &header.value);
         APPENDSTRING(response_string, CRLF);
     }
-    
+
     /* Add the body */
     APPENDSTRING(response_string, length_header);
 
-    string_from_int(&content_length, body_size, 10);
+  //  string_from_int(&content_length, body_size, 10);
+    char buf[32] = {0};
+    int nlen = snprintf(buf, sizeof(buf), "%d", body_size);
+    content_length.length = nlen;
+    content_length.value = buf;
     
     if (body_size > 0) {
         append_string(response_string, &content_length);
@@ -123,9 +129,8 @@ hw_string* create_response_buffer(hw_http_response* response)
     }
     
     APPENDSTRING(response_string, CRLF CRLF);
-    
-    if (body_size > 0)
-    {
+
+    if (body_size > 0){
         append_string(response_string, &resp->body);
     }
     return response_string;
@@ -145,7 +150,6 @@ void hw_http_response_send(hw_http_response* response, void* user_data, http_res
 
     http_server_write_response(write_context, response_buffer);
     resp->sent = 1;
-
     free(response_buffer);
     hw_free_http_response(response);
 }

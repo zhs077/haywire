@@ -27,7 +27,7 @@ struct server_ctx
     uv_thread_t thread_id;
     uv_sem_t semaphore;
     bool tcp_nodelay;
-    unsigned int listen_backlog;
+    uv_loop_t *loop;
 };
 
 struct ipc_client_ctx
@@ -47,4 +47,4 @@ struct ipc_server_ctx
 };
 
 void connection_consumer_start(void *arg);
-void connection_consumer_close(uv_async_t* handle, int status);
+void connection_consumer_close(uv_async_t* handle);
